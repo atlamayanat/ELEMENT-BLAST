@@ -97,19 +97,32 @@ Bu, "yetenek kendi elementiyle reaksiyon tetiklemeli" gereksinimini kötü bir h
 > **Bu bölüm, AI aracına aynı kodu gösterip "hangi sorunları görüyorsun, hangi tasarım örüntüleri çözer?" diye sorduğumda aldığım yanıtla benim listemi karşılaştırmak için.**
 
 ### Kullanılan AI Aracı
-- (örn. Claude / ChatGPT / Copilot Chat — ödev sırasında doldurulacak)
+- Claude
 
 ### AI'a Sorulan Prompt
 > "Bu kodda hangi tasarım sorunlarını görüyorsun? Hangi tasarım örüntüleri bu sorunları çözebilir? Her sorun için kısa bir açıklama yaz."
 
 ### AI'ın Tespit Ettiği Sorunlar (özet)
-- (AI yanıtı geldiğinde buraya madde madde özetlenecek)
+1. God Class / Single Responsibility ihlali
+Fonksiyonlar hem hasar hesaplamaları hem kullanıcından veri girşi hem de hesaplamaalr sonucu oyun cıkıtısını yazdırmak gibi birden çok işlemi tek başına gerçekleştiriyorlar. Bu nedenle o fonkisiyondaki tek bir hata aynı anda 3 4 işlevin çökmesine sebbep olabilir
+
+2. String tabanlı tip ayrımı + if-elif zincirleri
+Karışık if else sorguları hem kodun anlaşılırlıgını düşürüyor hem de yeni elementler,karakterler ya da yetenekler eklenmek istendiğinde karışık yapı yuzunden zorluk çıkarıyor
+
+3. Reaksiyon kuralları motora gömülmüş
+attack metodunda 6 farklı element kombinasyonu için iç içe elif blokları var. Bu da hem element eklemeyi hem de reaksiyon eklemeyi zorlaştırıyor
+
+4. Sabit sayılar kodda açık ve basitçe yerleştirilmiş
+hasar çarpanları base atk ve hp gibi statlar kodda açıkça verilmiş. bu veriler kod içinde gerek direk kodun kedisi tarafından gerek dıs güçler tarafından rahatlıkla değiştirilebilir
+
 
 ### Örtüşen Sorunlar
 - (Hem benim hem AI'ın işaret ettiği sorunlar)
 
 ### Sadece Benim Gördüğüm
-- (AI'ın atladığı, benim listemdeki sorunlar — ör. madde 10 "geçici element mutasyonu" kod kokusunu AI yakaladı mı?)
+1. Takım kavramı yok
+player_team ve enemy_team sadece listeler. Tüm rakip takıma hasarı paylaştır mantığı attack metoduna karmaşık bir sekilde yazılmış.
+2. enemy_decide fonksiyonu tüm düşmanlar için aynı kararı veriyor.
 
 ### Sadece AI'ın Gördüğü
 - (Benim listemde olmayan ama AI'ın haklı olduğu sorunlar)
