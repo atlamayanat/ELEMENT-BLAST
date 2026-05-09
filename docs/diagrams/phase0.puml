@@ -1,0 +1,79 @@
+@startuml phase0
+title Faz 0 - God Class (3v3 Elemental Dovus)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+class Character {
+  + name: str
+  + element: str    // "fire" | "cryo" | "electro" | "hydro"
+  + ability_name: str
+  + hp: int
+  + max_hp: int
+  + attack_power: int
+  + is_player: bool
+  + frozen_turns: int
+}
+
+class GameEngine {
+  + player_team: List<Character>
+  + enemy_team: List<Character>
+  + turn: int
+  + log: List<str>
+  + game_over: bool
+  + winner: str
+  --
+  + create_character(name, element, ability_name, is_player) : Character
+  -- if-elif: element basina taban stat
+  --
+  + attack(attacker, target) : void
+  -- 1) taban hasar (element if-elif)
+  -- 2) REAKSIYON if-elif zinciri (6 dal):
+  --    Fire->Cryo  : 2x
+  --    Electro->Fire: ana + %75 sicrama (rasgele baska dusman)
+  --    Hydro->Electro: 1.5x, takima boler
+  --    Cryo->Hydro : freeze 1 tur
+  --    Fire->Hydro : 1.5x
+  --    Hydro->Fire : 1.5x
+  --
+  + use_ability(character) : void
+  -- if-elif: ability_name'e gore inline gov
+  --   fire_blast | freeze_ray | thunder_chain | tidal_wave
+  -- (KOD KOKUSU: fire_blast icinde character.element gecici mutasyon)
+  --
+  + enemy_decide(enemy) : void
+  -- tek tip AI, davranis varyanti yok
+  + tick_status(character) : bool
+  -- if frozen_turns > 0: skip turn
+  + render() : void
+  -- print() ile takimlari yazdirir
+  + run_turn() : void  -- main.py icinde dagilmis
+}
+
+GameEngine "1" *-- "0..*" Character : player_team
+GameEngine "1" *-- "0..*" Character : enemy_team
+
+note right of GameEngine
+  **Tespit edilen sorunlar (PROBLEMS.md):**
+  1. God Class: yaratim, hasar, reaksiyon, ability,
+     AI, status, render hepsi burada
+  2. Element type-check: 4 metoda yayilmis if-elif
+  3. Reaksiyon kurallari hard-coded (6 elif dal)
+  4. Yetenekler ability_name'e bagimli dispatch
+  5. AI tek tipli, varyant yok
+  6. Status efektleri (frozen_turns) Character'da;
+     yenisi eklemek = patch
+  7. Takim kavrami yok (iki ayri liste)
+  8. Test edilemez (saf fonksiyon yok)
+  9. UI motora gomulu (render = print)
+  10. fire_blast geciici element mutasyonu (kod kokusu)
+end note
+
+note bottom of Character
+  Tek sinif. element ve ability_name STRING ile
+  ayrilan davranis - polimorfizm yok.
+  frozen_turns alani simdiden burada;
+  burning/wet/charged eklemek = patlama.
+end note
+
+@enduml
