@@ -218,7 +218,7 @@ class GameEngine:
                 print(line)
             self.log.clear()
         print()
-        print("  " + "TAKIMINIZ".ljust(col) + "  RAKIP")
+        print("  " + "TAKIM 1".ljust(col) + "  TAKIM 2")
         print("  " + ("-" * (col - 2)).ljust(col) + "  " + "-" * (col - 2))
         n = max(len(self.player_team), len(self.enemy_team))
         for i in range(n):
@@ -248,7 +248,7 @@ class GameEngine:
 
     def player_action(self, character, action, target_index):
         if action == "attack":
-            opp = self.enemy_team
+            opp = self.opponent_team_of(character)
             living_indices = [i for i, c in enumerate(opp) if c.hp > 0]
             if not living_indices:
                 return

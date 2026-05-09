@@ -33,8 +33,9 @@ def prompt_action_choice(character):
         print("  Gecersiz secim.")
 
 
-def prompt_target(engine):
-    living = [(i, c) for i, c in enumerate(engine.enemy_team) if c.hp > 0]
+def prompt_target(engine, attacker):
+    opp = engine.opponent_team_of(attacker)
+    living = [(i, c) for i, c in enumerate(opp) if c.hp > 0]
     print("  Hedef:")
     for i, c in living:
         print(f"    [{i + 1}] {c.name} ({c.element})  HP {c.hp}/{c.max_hp}")
@@ -53,22 +54,30 @@ def turn_header(turn):
     print("=" * 92)
 
 
-def player_turn(engine, character):
+def team_header(team_label):
+    print()
+    print("-" * 92)
+    print(f"  {team_label} SIRASI".center(92))
+    print("-" * 92)
+
+
+def character_turn(engine, character):
     print(f"\n  >>> Sira: {character.name} ({character.element})")
     action = prompt_action_choice(character)
     if action == "attack":
-        target_idx = prompt_target(engine)
+        target_idx = prompt_target(engine, character)
         engine.player_action(character, "attack", target_idx)
     elif action == "ability":
         if character.ability_name in SINGLE_TARGET_ABILITIES:
-            target_idx = prompt_target(engine)
+            target_idx = prompt_target(engine, character)
             engine.player_action(character, "ability", target_idx)
         else:
             engine.player_action(character, "ability", 0)
 
 
-def player_phase(engine):
-    for c in list(engine.player_team):
+def team_phase(engine, team, team_label):
+    team_header(team_label)
+    for c in list(team):
         if engine.is_battle_over():
             return
         if c.hp <= 0:
@@ -76,35 +85,21 @@ def player_phase(engine):
         if not engine.tick_status(c):
             engine.render()
             continue
-        player_turn(engine, c)
-        engine.check_game_over()
-        engine.render()
-
-
-def enemy_phase(engine):
-    for e in list(engine.enemy_team):
-        if engine.is_battle_over():
-            return
-        if e.hp <= 0:
-            continue
-        print(f"\n  >>> Rakip: {e.name} ({e.element}) hareket ediyor...")
-        if not engine.tick_status(e):
-            engine.render()
-            continue
-        engine.enemy_decide(e)
+        character_turn(engine, c)
         engine.check_game_over()
         engine.render()
 
 
 def main():
     print("=" * 92)
-    print("  MINI OYUN MOTORU - 3v3 Elemental Dovus (Faz 0)".center(92))
+    print("  MINI OYUN MOTORU - 3v3 Elemental Dovus PvP (Faz 0)".center(92))
     print("=" * 92)
     print("\n  Elementler: Fire, Cryo, Electro, Hydro")
     print(
         "  Reaksiyonlar: Fire->Cryo 2x | Fire/Hydro karsilikli 1.5x | "
         "Cryo->Hydro freeze | Hydro->Electro AoE | Electro->Fire sicrar"
     )
+    print("\n  Iki oyuncu sirayla oynar. Klavyeyi sirasi gelene devredin.")
 
     engine = GameEngine()
     setup_default_battle(engine)
@@ -113,17 +108,17 @@ def main():
     while not engine.is_battle_over():
         engine.turn += 1
         turn_header(engine.turn)
-        player_phase(engine)
+        team_phase(engine, engine.player_team, "TAKIM 1")
         if engine.is_battle_over():
             break
-        enemy_phase(engine)
+        team_phase(engine, engine.enemy_team, "TAKIM 2")
 
     print()
     print("=" * 92)
     if engine.winner == "player":
-        print("  *** ZAFER! Tum dusmanlar yenildi.".center(92))
+        print("  *** TAKIM 1 KAZANDI!".center(92))
     else:
-        print("  *** YENILGI! Takiminiz yenik dustu.".center(92))
+        print("  *** TAKIM 2 KAZANDI!".center(92))
     print("=" * 92)
 
 
