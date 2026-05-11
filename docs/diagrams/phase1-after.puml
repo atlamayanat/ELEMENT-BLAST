@@ -1,0 +1,93 @@
+@startuml phase1-after
+title Faz 1 - SONRA (Factory Method + Builder)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+abstract class Character {
+  + name: str
+  + ability_name: str
+  + hp / max_hp / attack_power
+  + is_player: bool
+  + frozen_turns: int
+  --
+  + {abstract} element: str
+  + {abstract} default_stats()
+}
+
+class FireCharacter {
+  + element = "fire"
+  + default_stats = {hp:25, atk:10}
+}
+
+class CryoCharacter {
+  + element = "cryo"
+  + default_stats = {hp:28, atk:8}
+}
+
+class ElectroCharacter {
+  + element = "electro"
+  + default_stats = {hp:22, atk:11}
+}
+
+class HydroCharacter {
+  + element = "hydro"
+  + default_stats = {hp:30, atk:7}
+}
+
+Character <|-- FireCharacter
+Character <|-- CryoCharacter
+Character <|-- ElectroCharacter
+Character <|-- HydroCharacter
+
+class CharacterFactory <<utility>> {
+  - _registry: Dict[str, Type[Character]]
+  --
+  + {static} create(element, name, ability_name, is_player, hp?, atk?)
+  + {static} register(element, character_class)
+}
+
+class CharacterBuilder {
+  - _name / _element / _ability_name
+  - _is_player / _hp / _attack_power
+  --
+  + with_name(name)        : self
+  + with_element(element)  : self
+  + with_ability(name)     : self
+  + for_team(label)        : self
+  + with_hp(hp)            : self
+  + with_attack_power(atk) : self
+  + build()                : Character
+}
+
+CharacterFactory ..> Character : creates
+CharacterFactory ..> FireCharacter : dispatches
+CharacterFactory ..> CryoCharacter : dispatches
+CharacterFactory ..> ElectroCharacter : dispatches
+CharacterFactory ..> HydroCharacter : dispatches
+
+CharacterBuilder ..> CharacterFactory : delegates build
+
+class GameEngine {
+  + player_team / enemy_team
+  --
+  + create_character(...) : delegates to factory
+  + add(character)
+  + attack(...) / use_ability(...) / render(...)
+}
+
+GameEngine ..> CharacterFactory : uses
+GameEngine "1" *-- "*" Character
+
+note bottom of CharacterFactory
+  Registry tablosu: element string -> Class.
+  Yeni element eklemek = yeni alt sinif + register().
+  Engine.create_character icinde IF-ELIF YOK.
+end note
+
+note bottom of CharacterBuilder
+  Fluent API: takim kurulumu okunaklilaserdi.
+  build() eksik alanlari erkenden reddediyor.
+end note
+
+@enduml

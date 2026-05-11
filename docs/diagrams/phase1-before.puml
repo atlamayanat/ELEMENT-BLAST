@@ -1,0 +1,38 @@
+@startuml phase1-before
+title Faz 1 - ONCE (Faz 0 God Class)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+class Character {
+  + name: str
+  + element: str      // STRING field
+  + ability_name: str
+  + hp / max_hp / attack_power
+  + is_player: bool
+  + frozen_turns: int
+}
+
+class GameEngine {
+  + player_team: List<Character>
+  + enemy_team: List<Character>
+  --
+  + create_character(name, element, ability_name, is_player)
+  -- if element == "fire": hp=25 atk=10
+  -- elif "cryo":           hp=28 atk=8
+  -- elif "electro":        hp=22 atk=11
+  -- elif "hydro":          hp=30 atk=7
+  + attack(...)
+  + use_ability(...)
+  + render(...)
+}
+
+GameEngine "1" *-- "*" Character
+
+note right of GameEngine
+  Yaratim mantigi engine'in icinde.
+  Yeni element = create_character'a yeni elif.
+  Karakter tipi STRING ile ayriliyor.
+end note
+
+@enduml

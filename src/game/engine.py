@@ -1,16 +1,6 @@
 import random
 
-
-class Character:
-    def __init__(self, name, element, ability_name, hp, attack_power, is_player):
-        self.name = name
-        self.element = element
-        self.ability_name = ability_name
-        self.hp = hp
-        self.max_hp = hp
-        self.attack_power = attack_power
-        self.is_player = is_player
-        self.frozen_turns = 0
+from src.game.characters import CharacterFactory
 
 
 class GameEngine:
@@ -23,27 +13,20 @@ class GameEngine:
         self.winner = None
 
     def create_character(self, name, element, ability_name, is_player):
-        if element == "fire":
-            hp = 25
-            atk = 10
-        elif element == "cryo":
-            hp = 28
-            atk = 8
-        elif element == "electro":
-            hp = 22
-            atk = 11
-        elif element == "hydro":
-            hp = 30
-            atk = 7
-        else:
-            raise ValueError(f"Bilinmeyen element: {element}")
+        character = CharacterFactory.create(
+            element=element,
+            name=name,
+            ability_name=ability_name,
+            is_player=is_player,
+        )
+        return self.add(character)
 
-        c = Character(name, element, ability_name, hp, atk, is_player)
-        if is_player:
-            self.player_team.append(c)
+    def add(self, character):
+        if character.is_player:
+            self.player_team.append(character)
         else:
-            self.enemy_team.append(c)
-        return c
+            self.enemy_team.append(character)
+        return character
 
     def opponent_team_of(self, character):
         return self.enemy_team if character.is_player else self.player_team
