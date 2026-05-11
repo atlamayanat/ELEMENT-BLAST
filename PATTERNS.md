@@ -95,6 +95,7 @@ Builder içinde nesneyi gerçekten yaratan yine Factory'dir — yani iki örünt
 - **Okunabilirlik:** Takım kurulumu artık veri (rosters listesi) + uniform inşa döngüsü; 6 satır kopyala-yapıştır kodu yerine.
 - **Esneklik:** Yeni opsiyonel alan eklemek (örn. başlangıç buff'ı) Builder'a tek metot eklemek demek; mevcut çağrılar bozulmaz.
 - **Validasyon noktası:** Eksik field'lar build zamanında yakalanır, runtime'da değil.
+- **Gerçek değer "custom draft"ta görünür:** `src/game/characters/roster.py` 8 hazır karakter şablonu sunuyor. `main.setup_custom_battle` oyuncuya havuzdan seçtirir, her seçim için aynı Builder akışı çalışır. Aynı altyapı hem "quick start" (default takımlar) hem de "custom draft" (kullanıcı seçer) modunu destekliyor — Builder'ın esnekliğinin somut karşılığı.
 
 ---
 

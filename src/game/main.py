@@ -1,4 +1,6 @@
-from src.game.characters import CharacterBuilder
+import random
+
+from src.game.characters import DEFAULT_ROSTER, TEAM_SIZE, CharacterBuilder
 from src.game.engine import GameEngine
 
 
@@ -24,20 +26,84 @@ def _build(name, element, ability, team_label):
 
 
 def setup_default_battle(engine):
-    player_roster = [
+    player_picks = [
         ("Pyra", "fire", "fire_blast"),
         ("Frost", "cryo", "freeze_ray"),
         ("Volt", "electro", "thunder_chain"),
     ]
-    enemy_roster = [
+    enemy_picks = [
         ("Marin", "hydro", "tidal_wave"),
         ("Glacius", "cryo", "freeze_ray"),
         ("Ignis", "fire", "fire_blast"),
     ]
-    for name, element, ability in player_roster:
+    for name, element, ability in player_picks:
         engine.add(_build(name, element, ability, "player"))
-    for name, element, ability in enemy_roster:
+    for name, element, ability in enemy_picks:
         engine.add(_build(name, element, ability, "enemy"))
+
+
+def prompt_game_mode():
+    print("\n  Mod sec:")
+    print("    [q] Quick start  - default 6 karakter ile baslar")
+    print("    [c] Custom draft - kendi takimini havuzdan secersin")
+    while True:
+        raw = input("  Mod: ").strip().lower()
+        if raw in ("q", "quick"):
+            return "quick"
+        if raw in ("c", "custom", "draft"):
+            return "custom"
+        print("  Gecersiz mod.")
+
+
+def _render_roster(entries, picked_indices):
+    print()
+    for i, entry in enumerate(entries):
+        marker = "X" if i in picked_indices else " "
+        ability = ABILITY_DISPLAY.get(entry["ability"], entry["ability"])
+        print(
+            f"    [{marker}] {i + 1:>2}. {entry['name']:<9}"
+            f"({entry['element']:<7}) {ability}"
+        )
+
+
+def prompt_player_draft(roster, count):
+    print(f"\n  TAKIMINI KUR - havuzdan {count} karakter sec.")
+    picked = []
+    while len(picked) < count:
+        _render_roster(roster, set(picked))
+        raw = input(f"  Secim {len(picked) + 1}/{count} (no): ").strip()
+        if not raw.isdigit():
+            print("  Sayi gir.")
+            continue
+        idx = int(raw) - 1
+        if idx < 0 or idx >= len(roster):
+            print("  Havuzda yok.")
+            continue
+        if idx in picked:
+            print("  Zaten secildi.")
+            continue
+        picked.append(idx)
+    return picked
+
+
+def setup_custom_battle(engine):
+    roster = list(DEFAULT_ROSTER)
+    player_indices = prompt_player_draft(roster, TEAM_SIZE)
+
+    remaining = [i for i in range(len(roster)) if i not in player_indices]
+    enemy_indices = random.sample(remaining, TEAM_SIZE)
+
+    print("\n  Rakip takim havuzdan otomatik secildi:")
+    for idx in enemy_indices:
+        entry = roster[idx]
+        print(f"    - {entry['name']} ({entry['element']})")
+
+    for idx in player_indices:
+        e = roster[idx]
+        engine.add(_build(e["name"], e["element"], e["ability"], "player"))
+    for idx in enemy_indices:
+        e = roster[idx]
+        engine.add(_build(e["name"], e["element"], e["ability"], "enemy"))
 
 
 def prompt_action_choice(character):
@@ -126,7 +192,11 @@ def main():
     )
 
     engine = GameEngine()
-    setup_default_battle(engine)
+    mode = prompt_game_mode()
+    if mode == "custom":
+        setup_custom_battle(engine)
+    else:
+        setup_default_battle(engine)
     engine.render()
 
     while not engine.is_battle_over():
