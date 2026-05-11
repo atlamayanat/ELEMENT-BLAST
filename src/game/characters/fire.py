@@ -2,8 +2,8 @@ from src.game.characters.base import Character
 
 
 class FireCharacter(Character):
-    @property
-    def element(self):
+    @classmethod
+    def default_element(cls):
         return "fire"
 
     @classmethod

@@ -2,8 +2,8 @@ from src.game.characters.base import Character
 
 
 class HydroCharacter(Character):
-    @property
-    def element(self):
+    @classmethod
+    def default_element(cls):
         return "hydro"
 
     @classmethod

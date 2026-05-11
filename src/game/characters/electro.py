@@ -2,8 +2,8 @@ from src.game.characters.base import Character
 
 
 class ElectroCharacter(Character):
-    @property
-    def element(self):
+    @classmethod
+    def default_element(cls):
         return "electro"
 
     @classmethod
