@@ -115,17 +115,19 @@ attack metodunda 6 farklı element kombinasyonu için iç içe elif blokları va
 4. Sabit sayılar kodda açık ve basitçe yerleştirilmiş
 hasar çarpanları base atk ve hp gibi statlar kodda açıkça verilmiş. bu veriler kod içinde gerek direk kodun kedisi tarafından gerek dıs güçler tarafından rahatlıkla değiştirilebilir
 
-
 ### Örtüşen Sorunlar
-- (Hem benim hem AI'ın işaret ettiği sorunlar)
+- yukarıdaki  1 2 3 ve 4 . sorunları ıkımız de tesipt ettik 
 
 ### Sadece Benim Gördüğüm
 1. Takım kavramı yok
 player_team ve enemy_team sadece listeler. Tüm rakip takıma hasarı paylaştır mantığı attack metoduna karmaşık bir sekilde yazılmış.
 2. enemy_decide fonksiyonu tüm düşmanlar için aynı kararı veriyor.
 
-### Sadece AI'ın Gördüğü
-- (Benim listemde olmayan ama AI'ın haklı olduğu sorunlar)
 
+### Sadece AI'ın Gördüğü
+-Type hint ve test yokluğu
+Kod hiç type hint kullanmıyor; bir IDE veya mypy ile sözleşmeleri doğrulamak imkansız. Ayrıca hiç birim test yok
+Render motora gömülü
+render() doğrudan print() çağırıyor. Aynı motoru pygame veya web UI ile kullanmak istesek motorun her yerini değiştirmemiz gerekirdi
 ### Yorum
-- (AI ne kadar isabetliydi? Yanılttığı bir nokta var mıydı? Öğrendiğim ne oldu?)
+- AI basta fazla düzenlenmiş ama saçma terminal çıktıları veren bir kod yazdı. ayrıca oyunu pve yani kodun oyuncuya karsı oynadıgı bir sistemde yazmıstı. Daha duzenli bir terminal cıktısı planladım.Ve oyunu pvp ye cevirdim boylece ozellikle faz 0 da if else yapısı ile  yapması cok zor olan karar verme mekanizmasını simdilik kaldırdım ileriki fazlarda oyuna eklenebilir.
