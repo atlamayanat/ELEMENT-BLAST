@@ -1,3 +1,4 @@
+from src.game.characters import CharacterBuilder
 from src.game.engine import GameEngine
 
 
@@ -11,14 +12,32 @@ ABILITY_DISPLAY = {
 }
 
 
-def setup_default_battle(engine):
-    engine.create_character("Pyra", "fire", "fire_blast", is_player=True)
-    engine.create_character("Frost", "cryo", "freeze_ray", is_player=True)
-    engine.create_character("Volt", "electro", "thunder_chain", is_player=True)
+def _build(name, element, ability, team_label):
+    return (
+        CharacterBuilder()
+        .with_name(name)
+        .with_element(element)
+        .with_ability(ability)
+        .for_team(team_label)
+        .build()
+    )
 
-    engine.create_character("Marin", "hydro", "tidal_wave", is_player=False)
-    engine.create_character("Glacius", "cryo", "freeze_ray", is_player=False)
-    engine.create_character("Ignis", "fire", "fire_blast", is_player=False)
+
+def setup_default_battle(engine):
+    player_roster = [
+        ("Pyra", "fire", "fire_blast"),
+        ("Frost", "cryo", "freeze_ray"),
+        ("Volt", "electro", "thunder_chain"),
+    ]
+    enemy_roster = [
+        ("Marin", "hydro", "tidal_wave"),
+        ("Glacius", "cryo", "freeze_ray"),
+        ("Ignis", "fire", "fire_blast"),
+    ]
+    for name, element, ability in player_roster:
+        engine.add(_build(name, element, ability, "player"))
+    for name, element, ability in enemy_roster:
+        engine.add(_build(name, element, ability, "enemy"))
 
 
 def prompt_action_choice(character):
