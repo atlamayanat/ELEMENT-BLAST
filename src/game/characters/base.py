@@ -10,7 +10,6 @@ class Character(ABC):
         self.max_hp = hp
         self.attack_power = attack_power
         self.is_player = is_player
-        self.frozen_turns = 0
 
     @classmethod
     @abstractmethod
@@ -21,3 +20,20 @@ class Character(ABC):
     @abstractmethod
     def default_stats(cls):
         ...
+
+    def take_damage(self, amount, source_element=None):
+        actual = max(0, amount)
+        self.hp = max(0, self.hp - actual)
+        return actual
+
+    def tick(self):
+        return []
+
+    def should_skip_turn(self):
+        return False
+
+    def apply_effect(self, effect_factory):
+        return effect_factory(self)
+
+    def has_status(self, status_name):
+        return False
