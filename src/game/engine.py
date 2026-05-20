@@ -1,12 +1,14 @@
 import random
 
 from src.game.characters import CharacterFactory
+from src.game.effects import BurningStatus, FrozenStatus, ShockedStatus
+from src.game.team import Team
 
 
 class GameEngine:
     def __init__(self):
-        self.player_team = []
-        self.enemy_team = []
+        self.player_team = Team("player")
+        self.enemy_team = Team("enemy")
         self.turn = 0
         self.log = []
         self.game_over = False
@@ -23,91 +25,82 @@ class GameEngine:
 
     def add(self, character):
         if character.is_player:
-            self.player_team.append(character)
+            self.player_team.add(character)
         else:
-            self.enemy_team.append(character)
+            self.enemy_team.add(character)
         return character
 
     def opponent_team_of(self, character):
         return self.enemy_team if character.is_player else self.player_team
-
-    def alive(self, team):
-        return [c for c in team if c.hp > 0]
 
     def attack(self, attacker, target):
         if target.hp <= 0:
             self.log.append(f"  {target.name} zaten olu, saldiri iptal.")
             return
 
-        if attacker.element == "fire":
-            damage = attacker.attack_power
-        elif attacker.element == "cryo":
-            damage = attacker.attack_power
-        elif attacker.element == "electro":
-            damage = attacker.attack_power
-        elif attacker.element == "hydro":
-            damage = attacker.attack_power
-        else:
-            damage = 1
+        damage = attacker.attack_power
 
         if attacker.element == "fire" and target.element == "cryo":
             damage *= 2
             self.log.append(
                 f"  >> REAKSIYON: Fire->Cryo, hasar 2x ({attacker.name} -> {target.name})"
             )
-            target.hp -= damage
-            self._announce_hit(attacker, target, damage)
+            actual = target.take_damage(damage, source_element=attacker.element)
+            self._announce_hit(attacker, target, actual)
         elif attacker.element == "electro" and target.element == "fire":
-            target.hp -= damage
-            self._announce_hit(attacker, target, damage)
+            actual = target.take_damage(damage, source_element=attacker.element)
+            self._announce_hit(attacker, target, actual)
             opp_team = self.opponent_team_of(attacker)
-            others = [c for c in self.alive(opp_team) if c is not target]
+            others = [c for c in opp_team.alive_members() if c is not target]
             if others:
                 bounce_target = random.choice(others)
                 bounce_damage = max(1, int(damage * 0.75))
-                bounce_target.hp -= bounce_damage
+                bounce_actual = bounce_target.take_damage(bounce_damage, source_element=attacker.element)
                 self.log.append(
                     f"  >> REAKSIYON: Electro->Fire, sicrama %75 -> {bounce_target.name}"
                 )
-                self._announce_hit(attacker, bounce_target, bounce_damage)
+                self._announce_hit(attacker, bounce_target, bounce_actual)
             else:
                 self.log.append("  >> REAKSIYON: Electro->Fire ama sicrayacak hedef yok")
+            if target.hp > 0:
+                opp_team.apply_effect_to(target, ShockedStatus)
+                self.log.append(f"  >> {target.name} sok altinda (bir sonraki hasar +%50)")
         elif attacker.element == "hydro" and target.element == "electro":
             total_damage = int(damage * 1.5)
             opp_team = self.opponent_team_of(attacker)
-            living = self.alive(opp_team)
+            living = opp_team.alive_members()
             if not living:
                 return
             split = max(1, total_damage // len(living))
             self.log.append(
                 f"  >> REAKSIYON: Hydro->Electro, 1.5x hasar tum takima ({split}/kisi)"
             )
-            for victim in living:
-                victim.hp -= split
-                self._announce_hit(attacker, victim, split)
+            for victim, actual in opp_team.take_damage_each(split, source_element=attacker.element):
+                self._announce_hit(attacker, victim, actual)
         elif attacker.element == "cryo" and target.element == "hydro":
-            target.hp -= damage
-            target.frozen_turns = 1
-            self.log.append(f"  >> REAKSIYON: Cryo->Hydro, {target.name} 1 tur dondu")
-            self._announce_hit(attacker, target, damage)
+            actual = target.take_damage(damage, source_element=attacker.element)
+            self._announce_hit(attacker, target, actual)
+            opp_team = self.opponent_team_of(attacker)
+            if target.hp > 0:
+                opp_team.apply_effect_to(target, FrozenStatus)
+                self.log.append(f"  >> REAKSIYON: Cryo->Hydro, {target.name} 1 tur dondu")
         elif attacker.element == "fire" and target.element == "hydro":
             damage = int(damage * 1.5)
             self.log.append(f"  >> REAKSIYON: Fire->Hydro, hasar 1.5x")
-            target.hp -= damage
-            self._announce_hit(attacker, target, damage)
+            actual = target.take_damage(damage, source_element=attacker.element)
+            self._announce_hit(attacker, target, actual)
+            opp_team = self.opponent_team_of(attacker)
+            if target.hp > 0:
+                opp_team.apply_effect_to(target, BurningStatus)
+                self.log.append(f"  >> {target.name} yandi (3 tur DoT)")
         elif attacker.element == "hydro" and target.element == "fire":
             damage = int(damage * 1.5)
             self.log.append(f"  >> REAKSIYON: Hydro->Fire, hasar 1.5x")
-            target.hp -= damage
-            self._announce_hit(attacker, target, damage)
+            actual = target.take_damage(damage, source_element=attacker.element)
+            self._announce_hit(attacker, target, actual)
         else:
-            target.hp -= damage
-            self._announce_hit(attacker, target, damage)
-
-        for team in (self.player_team, self.enemy_team):
-            for c in team:
-                if c.hp < 0:
-                    c.hp = 0
+            actual = target.take_damage(damage, source_element=attacker.element)
+            self._announce_hit(attacker, target, actual)
 
     def _announce_hit(self, attacker, target, damage):
         self.log.append(f"  {attacker.name} -> {target.name}: {damage} hasar")
@@ -118,7 +111,7 @@ class GameEngine:
         opp = self.opponent_team_of(character)
         if 0 <= target_index < len(opp) and opp[target_index].hp > 0:
             return opp[target_index]
-        living = self.alive(opp)
+        living = opp.alive_members()
         return living[0] if living else None
 
     def use_ability(self, character, target_index=0):
@@ -130,66 +123,60 @@ class GameEngine:
             self.log.append(f"  ## {character.name} 'Fire Blast' kullandi!")
             saved_element = character.element
             character.element = "fire"
-            target.hp -= damage
-            self._announce_hit(character, target, damage)
+            actual = target.take_damage(damage, source_element="fire")
+            self._announce_hit(character, target, actual)
             character.element = saved_element
         elif character.ability_name == "freeze_ray":
             target = self._resolve_single_target(character, target_index)
             if target is None:
                 return
             damage = character.attack_power
-            target.hp -= damage
-            target.frozen_turns = 1
+            actual = target.take_damage(damage, source_element="cryo")
             self.log.append(f"  ## {character.name} 'Freeze Ray' kullandi!")
-            self.log.append(f"  >> {target.name} 1 tur dondu (yetenek)")
-            self._announce_hit(character, target, damage)
+            self._announce_hit(character, target, actual)
+            opp_team = self.opponent_team_of(character)
+            if target.hp > 0:
+                opp_team.apply_effect_to(target, FrozenStatus)
+                self.log.append(f"  >> {target.name} 1 tur dondu (yetenek)")
         elif character.ability_name == "thunder_chain":
             opp = self.opponent_team_of(character)
-            living = self.alive(opp)
             damage = int(character.attack_power * 0.6)
             self.log.append(f"  ## {character.name} 'Thunder Chain' kullandi!")
-            for t in living:
-                t.hp -= damage
-                self._announce_hit(character, t, damage)
+            for t, actual in opp.take_damage_each(damage, source_element="electro"):
+                self._announce_hit(character, t, actual)
         elif character.ability_name == "tidal_wave":
             opp = self.opponent_team_of(character)
-            living = self.alive(opp)
             damage = int(character.attack_power * 0.8)
             self.log.append(f"  ## {character.name} 'Tidal Wave' kullandi!")
-            for t in living:
-                t.hp -= damage
-                self._announce_hit(character, t, damage)
+            for t, actual in opp.take_damage_each(damage, source_element="hydro"):
+                self._announce_hit(character, t, actual)
         else:
             self.log.append(f"  Bilinmeyen yetenek: {character.ability_name}")
 
-        for team in (self.player_team, self.enemy_team):
-            for c in team:
-                if c.hp < 0:
-                    c.hp = 0
-
     def enemy_decide(self, enemy):
-        living_players = self.alive(self.player_team)
+        living_players = self.player_team.alive_members()
         if not living_players:
             return
         target = random.choice(living_players)
-        target_index = self.player_team.index(target)
+        target_index = self.player_team.index_of(target)
         if enemy.hp < enemy.max_hp * 0.3 and random.random() < 0.5:
             self.use_ability(enemy, target_index)
         else:
             self.attack(enemy, target)
 
     def tick_status(self, character):
-        if character.frozen_turns > 0:
-            character.frozen_turns -= 1
+        if character.should_skip_turn():
+            self.log.extend(character.tick())
             self.log.append(f"  ~ {character.name} donmus, sira atladi")
             return False
+        self.log.extend(character.tick())
         return True
 
     def check_game_over(self):
-        if not self.alive(self.player_team):
+        if self.player_team.is_defeated():
             self.game_over = True
             self.winner = "enemy"
-        elif not self.alive(self.enemy_team):
+        elif self.enemy_team.is_defeated():
             self.game_over = True
             self.winner = "player"
 
@@ -223,8 +210,12 @@ class GameEngine:
         bar = "#" * filled + "." * (6 - filled)
         if c.hp <= 0:
             status = "  *OLU*"
-        elif c.frozen_turns > 0:
+        elif c.has_status("frozen"):
             status = "  *DONUK*"
+        elif c.has_status("burning"):
+            status = "  *YANIYOR*"
+        elif c.has_status("shocked"):
+            status = "  *SOKLU*"
         else:
             status = ""
         return f"[{index + 1}] {c.name:<9}({elem}) {c.hp:>3}/{c.max_hp:<3} [{bar}]{status}"
