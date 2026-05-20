@@ -1,0 +1,57 @@
+@startuml phase2-before
+title Faz 2 - ONCE (Faz 1 sonu durumu)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+abstract class Character {
+  + name: str
+  + element: str
+  + ability_name: str
+  + hp / max_hp / attack_power
+  + is_player: bool
+  + frozen_turns: int     <<status field>>
+}
+
+class FireCharacter
+class CryoCharacter
+class ElectroCharacter
+class HydroCharacter
+
+Character <|-- FireCharacter
+Character <|-- CryoCharacter
+Character <|-- ElectroCharacter
+Character <|-- HydroCharacter
+
+class GameEngine {
+  + player_team: list[Character]   <<ham liste>>
+  + enemy_team:  list[Character]   <<ham liste>>
+  + turn / log / winner
+  --
+  + attack(attacker, target)
+  + use_ability(character, target_index)
+  + tick_status(character)
+  + check_game_over()
+  + render()
+  ..
+  - alive(team): list[Character]
+  - HP-cap dongusu (saldiri & yetenek sonrasinda iki yerde tekrar)
+  - AoE bloklari (Hydro->Electro, Thunder Chain, Tidal Wave)
+}
+
+GameEngine "1" *-- "*" Character : holds in list
+
+note right of Character
+  Status efekti tek tip: frozen_turns: int.
+  Yeni etki = Character'a yeni field.
+end note
+
+note right of GameEngine
+  AoE her seferinde ayni dongu tekrari:
+    for c in self.alive(team): c.hp -= dmg
+  HP-cap hack iki ayri yerde:
+    for c in team: if c.hp < 0: c.hp = 0
+  Yapisal compose noktasi yok.
+end note
+
+@enduml
