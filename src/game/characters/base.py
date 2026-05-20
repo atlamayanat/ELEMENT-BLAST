@@ -2,14 +2,15 @@ from abc import ABC, abstractmethod
 
 
 class Character(ABC):
-    def __init__(self, name, ability_name, hp, attack_power, is_player):
+    def __init__(self, name, ability, hp, attack_power, is_player, ai_strategy=None):
         self.name = name
         self.element = self.default_element()
-        self.ability_name = ability_name
+        self.ability = ability
         self.hp = hp
         self.max_hp = hp
         self.attack_power = attack_power
         self.is_player = is_player
+        self.ai_strategy = ai_strategy
 
     @classmethod
     @abstractmethod

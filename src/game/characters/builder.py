@@ -9,6 +9,7 @@ class CharacterBuilder:
         self._is_player = True
         self._hp = None
         self._attack_power = None
+        self._ai_strategy = None
 
     def with_name(self, name):
         self._name = name
@@ -36,6 +37,10 @@ class CharacterBuilder:
         self._attack_power = attack_power
         return self
 
+    def with_ai(self, ai_strategy):
+        self._ai_strategy = ai_strategy
+        return self
+
     def build(self):
         missing = [
             name
@@ -56,4 +61,5 @@ class CharacterBuilder:
             is_player=self._is_player,
             hp=self._hp,
             attack_power=self._attack_power,
+            ai_strategy=self._ai_strategy,
         )
