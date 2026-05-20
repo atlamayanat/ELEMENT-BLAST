@@ -2,16 +2,7 @@ import random
 
 from src.game.characters import DEFAULT_ROSTER, TEAM_SIZE, CharacterBuilder
 from src.game.engine import GameEngine
-
-
-SINGLE_TARGET_ABILITIES = {"fire_blast", "freeze_ray"}
-
-ABILITY_DISPLAY = {
-    "fire_blast": "Fire Blast (tek hedef, 1.5x hasar)",
-    "freeze_ray": "Freeze Ray (tek hedef, 1 tur dondurur)",
-    "thunder_chain": "Thunder Chain (TUM rakip, 0.6x hasar)",
-    "tidal_wave": "Tidal Wave (TUM rakip, 0.8x hasar)",
-}
+from src.game.abilities import registry as ability_registry
 
 
 def _build(name, element, ability, team_label):
@@ -59,7 +50,7 @@ def _render_roster(entries, picked_indices):
     print()
     for i, entry in enumerate(entries):
         marker = "X" if i in picked_indices else " "
-        ability = ABILITY_DISPLAY.get(entry["ability"], entry["ability"])
+        ability = ability_registry.get(entry["ability"]).display_name
         print(
             f"    [{marker}] {i + 1:>2}. {entry['name']:<9}"
             f"({entry['element']:<7}) {ability}"
@@ -107,8 +98,7 @@ def setup_custom_battle(engine):
 
 
 def prompt_action_choice(character):
-    ability_label = ABILITY_DISPLAY.get(character.ability_name, character.ability_name)
-    print(f"  Yetenek: {ability_label}")
+    print(f"  Yetenek: {character.ability.display_name}")
     while True:
         raw = input("  Aksiyon [a]ttack / [s]kill: ").strip().lower()
         if raw in ("a", "attack"):
@@ -145,7 +135,7 @@ def player_turn(engine, character):
         target_idx = prompt_target(engine)
         engine.player_action(character, "attack", target_idx)
     elif action == "ability":
-        if character.ability_name in SINGLE_TARGET_ABILITIES:
+        if character.ability.is_single_target:
             target_idx = prompt_target(engine)
             engine.player_action(character, "ability", target_idx)
         else:
