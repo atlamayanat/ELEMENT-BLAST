@@ -13,12 +13,12 @@ Bu dosya her fazda eklenen örüntüleri, neden seçildiklerini ve hangi sorunu 
 **İlgili PROBLEMS.md maddesi:** #2 (Element type-check zincirleri) ve #4 (Yetenekler isim-bağımlı — kısmen)
 
 #### Sorun
-Faz 0'da `engine.create_character` metodu element string'ine göre `if-elif` ile dallanıyordu; her yeni element için 4 ayrı metoda dokunmak gerekiyordu (OCP ihlali). Karakter tipi tek bir sınıfta string field olarak tutuluyordu, polimorfizm yoktu.
+faz 0 da her karakter basit el if donguleri ile olusturuluyordu. Bu hem karısık bir kod yapısı hem de karakter olsustırma oynama ve kullanma aşamasında uzun kod yapıları kullanmamı gerekitiiriyordu
 
 #### Çözüm
-Önce **soyut bir `Character` hiyerarşisi** kuruldu: `Character` (ABC) + 4 concrete alt sınıf (`FireCharacter`, `CryoCharacter`, `ElectroCharacter`, `HydroCharacter`). Her alt sınıf kendi `element` property'sini ve `default_stats` classmethod'unu taşıyor.
+Önce soyut bir Character hiyerarşisi kuruldu: Bu soyut sınıf altına 4 adet alt sınıf acarak 4 elementteki karakterlerin ayrılmasını sağladım. Her alt sınıf kendi element property'sini ve default_stats classmethod'unu taşıyor.
 
-Sonra `CharacterFactory` bir **registry tablosu** ile dispatch yapıyor:
+Sonra `CharacterFactory` bir **registry tablosu** ile görevlendirme yapıyor:
 ```python
 _registry = {
     "fire": FireCharacter,
@@ -28,7 +28,6 @@ _registry = {
 }
 ```
 
-`CharacterFactory.create(element=...)` çağrısı kaydın doğru sınıfını bulup uygun taban stat'lerle başlatıyor.
 
 #### Önce / Sonra
 **Önce** (`engine.py` Faz 0):
@@ -58,24 +57,18 @@ def create_character(self, name, element, ability_name, is_player):
     return self.add(character)
 ```
 
-#### Ne Kazandık
-- **OCP uyumu:** Yeni element eklemek için `engine.py`'yi değiştirmek gerekmiyor; sadece yeni `Character` alt sınıfı yazıp `CharacterFactory.register("geo", GeoCharacter)` çağırmak yeterli.
-- **Polimorfizm:** `character.element` artık bir property, string field değil; alt sınıf tarafından override ediliyor.
-- **Sorumluluk ayrımı:** Yaratım mantığı motordan çıkıp `characters/` paketine taşındı — God Class biraz daha küçüldü.
-
----
 
 ### 2. Builder
 
 **Kategori:** Creational
 **Konum:** [`src/game/characters/builder.py`](src/game/characters/builder.py)
-**İlgili PROBLEMS.md maddesi:** #3 (Yaratım sabit — runtime esnekliği yok)
+**İlgili PROBLEMS.md maddesi:** #3 
 
 #### Sorun
-`engine.create_character(name, element, ability_name, is_player)` pozisyonel/keyword argüman zinciri ile çalışıyordu. Yeni bir özellik eklemek (örn. başlangıç HP ya da custom attack power) imzayı değiştirip mevcut tüm çağırımları güncellemek demekti. Ayrıca 3v3 dövüşte 6 karakter kurulumu okuması zor bir cümle dizisine dönüşmüştü.
+`engine.create_character(name, element, ability_name, is_player)` bir karakter oluşturulmaya çalışırken if els sorgu zincirleri ile uzun sorugular yapılarak karakter oluşturulabiliyordu
 
 #### Çözüm
-`CharacterBuilder` fluent API ile karakter inşa eder:
+`CharacterBuilder` fonksiyonu ile sadece gerekli veriler girilerek karakter basitça oluşturulur.
 ```python
 character = (
     CharacterBuilder()
@@ -87,23 +80,103 @@ character = (
 )
 ```
 
-`build()` zorunlu alanları kontrol eder; eksiklikleri açık hata mesajıyla reddeder. Opsiyonel `with_hp()` / `with_attack_power()` ile element default'larını override edebilirsin.
+build() zorunlu alanları kontrol eder; eksiklikleri açık hata mesajıyla reddeder.
+ Opsiyonel `with_hp()` / `with_attack_power()` ile element default'larını override edebilir
 
 Builder içinde nesneyi gerçekten yaratan yine Factory'dir — yani iki örüntü birlikte çalışıyor: Builder konfigürasyonu toplar, Factory üretir.
 
+---
+
+
+## Faz 2 
+
+### 3. Composite — Team
+
+**Kategori:** Structural
+**Konum:** [`src/game/team.py`](src/game/team.py)
+**İlgili PROBLEMS.md maddeleri:** #5 (kod tekrarı — AoE döngüleri), #7 (HP-cap hack iki yerde tekrarlanıyor)
+
+#### Sorun
+Faz 1 sonunda engine.player_team ve engine.enemy_team direk  `list[Character]` olarak tanımlanıstı . Engine içinde "hayatta olanlara dağıt" desenli üç ayrı kod bloğu vardı:
+- `Hydro→Electro` reaksiyonu — tüm rakip takıma 1.5x AoE
+- `Thunder Chain` yeteneği — tüm rakipler 0.6x
+- `Tidal Wave` yeteneği — tüm rakipler 0.8x
+
+Üçünde de aynı for dongulu kodlar tekrarlanıyordu: . Ayrıca her saldırı ve yetenek sonunda HP'leri 0'a çekmek için aynı 4 satırlık döngü iki kere yazılmıştı.
+
+#### Çözüm
+`Team` sınıfı üyeleri tek bir nesne gibi yönetir  boylece takıma hasar dağıtma işlemleri tüm takımın ölmesi gibi durumlarda kod pratikliği sağlanır.
+
+```python
+class Team:
+    def alive_members(self): 
+    def is_defeated(self): 
+    def apply_to_each(self, fn): 
+    def take_damage_each(self, amount, source_element=None): 
+    def tick_statuses(self): 
+    def apply_effect_to(self, member, effect_factory): 
+```
+
+
+#### Önce / Sonra
+**Önce** (Faz 1, `engine.py`):
+```python
+opp_team = self.opponent_team_of(attacker)
+living = self.alive(opp_team)
+split = max(1, total_damage // len(living))
+for victim in living:
+    victim.hp -= split
+    self._announce_hit(attacker, victim, split)
+# ... ve her saldırının sonunda:
+for team in (self.player_team, self.enemy_team):
+    for c in team:
+        if c.hp < 0: c.hp = 0
+```
+
+**Sonra** (Faz 2):
+```python
+opp_team = self.opponent_team_of(attacker)
+for victim, actual in opp_team.take_damage_each(split, source_element=attacker.element):
+    self._announce_hit(attacker, victim, actual)
+
+
+
+
+- **Tek kaynak:** AoE mantığı tek yerde ; reaksiyonlar ve yetenekler aynı yapıyı kullanıyor
+- **Defeat kontrolü adlı bir kavram oldu:** 
+
+- **Adapter** roster dict→Character dönüşümünü Builder zaten yapıyor; ekstra bir adapter katmanı gereksiz tekrar olurdu.
+
+
+### 4. Decorator
+**Kategori:** Structural
+**Konum:** [`src/game/effects/status.py`](src/game/effects/status.py)
+**İlgili PROBLEMS.md maddesi:** #6, #8 
+
+#### Sorun
+Faz 1'de tek status vardı: `frozen_turns: int` alanı. Yanma eklemek için `burning_turns`'a yeni bir alan demekti. Üstelik bir karakter aynı anda hem donmuş hem yanıyor olamıyordu.
+
+#### Çözüm
+`StatusEffect` sınıfı Characteri ve aynı arayüzü konuşur. Status'lar yığılabilir: Character → BurningStatus → FrozenStatus. Her sarmal kendi davranışını ekler, geri kalanı içeriye iletir.
+
+
+- **`BurningStatus`** — 3 tur, her tur 2 hasar (Fire→Hydro tetikler)
+- **`FrozenStatus`** — 1 tur sıra atlatır (Cryo→Hydro ve Freeze Ray tetikler)
+- **`ShockedStatus`** — bir sonraki hasarı 1.5x büyütür, sonra biter (Electro→Fire tetikler)
+
+#### Önce / Sonra
+**Önce:** `target.frozen_turns = 1` — Character'a doğrudan field yazılıyordu.
+
+**Sonra:** `opp_team.apply_effect_to(target, FrozenStatus)` — target bir FrozenStatus ile sarılıyor, engine field'ı bilmiyor.
+
 #### Ne Kazandık
-- **Okunabilirlik:** Takım kurulumu artık veri (rosters listesi) + uniform inşa döngüsü; 6 satır kopyala-yapıştır kodu yerine.
-- **Esneklik:** Yeni opsiyonel alan eklemek (örn. başlangıç buff'ı) Builder'a tek metot eklemek demek; mevcut çağrılar bozulmaz.
-- **Validasyon noktası:** Eksik field'lar build zamanında yakalanır, runtime'da değil.
-- **Gerçek değer "custom draft"ta görünür:** `src/game/characters/roster.py` 8 hazır karakter şablonu sunuyor. `main.setup_custom_battle` oyuncuya havuzdan seçtirir, her seçim için aynı Builder akışı çalışır. Aynı altyapı hem "quick start" (default takımlar) hem de "custom draft" (kullanıcı seçer) modunu destekliyor — Builder'ın esnekliğinin somut karşılığı.
+- **Yeni etki = yeni sınıf:** Character'a alan eklemeden yeni davranış (OCP).
+- **Birden fazla etki üst üste:** Bir karakter hem yanıyor hem donmuş olabilir.
+- **Engine sade kaldı:** `tick()` ve `should_skip_turn()` çağırıyor, status'un kendisini bilmiyor.
 
 ---
 
-## UML
+## Faz 2 UML
+## Faz 2 AI Etkileşim Kaydı
 
-- **Önce:** [docs/diagrams/phase1-before.puml](docs/diagrams/phase1-before.puml)
-- **Sonra:** [docs/diagrams/phase1-after.puml](docs/diagrams/phase1-after.puml)
-
-## AI Etkileşim Kaydı
-
-- [docs/ai-log/phase1.md](docs/ai-log/phase1.md) — Faz 1 sırasında AI ile yapılan tartışmalar.
+- [docs/ai-log/phase2.md](docs/ai-log/phase2.md) — Faz 2 sırasında AI ile yapılan tartışmalar, AI'ın eksik/yanlış önerilerinin eleştirisi.

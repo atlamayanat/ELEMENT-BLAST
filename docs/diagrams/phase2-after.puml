@@ -1,0 +1,118 @@
+@startuml phase2-after
+title Faz 2 - SONRA (Composite + Decorator)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+' --- Decorator dali (Character bir ICharacter rolu de oynar) ---
+
+abstract class Character {
+  + name / element / ability_name
+  + hp / max_hp / attack_power
+  + is_player
+  --
+  + take_damage(amount, source_element?) : int
+  + tick() : list[str]
+  + should_skip_turn() : bool
+  + apply_effect(factory) : Character
+  + has_status(name) : bool
+  + {abstract} default_element()
+  + {abstract} default_stats()
+}
+
+class FireCharacter
+class CryoCharacter
+class ElectroCharacter
+class HydroCharacter
+
+Character <|-- FireCharacter
+Character <|-- CryoCharacter
+Character <|-- ElectroCharacter
+Character <|-- HydroCharacter
+
+abstract class StatusEffect <<Decorator>> {
+  - _wrapped: Character
+  --
+  + __getattr__ : forwards reads to wrapped
+  + __setattr__ : forwards writes to wrapped (except _* fields)
+  + take_damage(amount, src?) : int    <<forward>>
+  + tick() : list[str]                  <<forward>>
+  + should_skip_turn() : bool           <<forward>>
+  + has_status(name) : bool             <<forward>>
+  + unwrap() : Character
+}
+
+Character <|-- StatusEffect
+StatusEffect o--> Character : _wrapped
+
+class BurningStatus {
+  - _remaining: int = 3
+  + tick(): DoT 2 hasar/tur, log "yaniyor"
+  + has_status("burning") -> True
+}
+
+class FrozenStatus {
+  - _remaining: int = 1
+  + should_skip_turn() -> True
+  + tick(): _remaining--
+  + has_status("frozen") -> True
+}
+
+class ShockedStatus {
+  - _active: bool = True
+  + take_damage(amt): wrapped.take_damage(amt * 1.5)
+  + has_status("shocked") -> True
+}
+
+StatusEffect <|-- BurningStatus
+StatusEffect <|-- FrozenStatus
+StatusEffect <|-- ShockedStatus
+
+' --- Composite dali ---
+
+class Team <<Composite>> {
+  + label: str
+  - _members: list[Character]
+  --
+  + add(character)
+  + members() / alive_members() / is_defeated()
+  + apply_to_each(fn)
+  + take_damage_each(amount, src?) : list[(member, actual)]
+  + tick_statuses() : list[str]
+  + apply_effect_to(member, factory) : Character
+  + index_of(member) / __iter__ / __len__ / __getitem__
+}
+
+Team "1" *-- "*" Character : holds (raw or decorated)
+
+' --- Engine ---
+
+class GameEngine {
+  + player_team: Team
+  + enemy_team: Team
+  + turn / log / winner
+  --
+  + attack(attacker, target)
+  + use_ability(character, target_index)
+  + tick_status(character)
+  + check_game_over()
+  + render()
+}
+
+GameEngine "1" *-- "2" Team
+GameEngine ..> StatusEffect : applies via Team.apply_effect_to
+
+note right of StatusEffect
+  Decorator: yigilabilir status'lar.
+  Character'a yeni field eklemeden
+  yeni etki = yeni alt sinif.
+end note
+
+note right of Team
+  Composite: takimi tek nesne gibi yonet.
+  AoE dongusu, defeat kontrolu, status tick
+  tek yerde. HP-cap hack silindi
+  (take_damage 0'a clamp ediyor).
+end note
+
+@enduml
