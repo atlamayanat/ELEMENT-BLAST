@@ -1,0 +1,56 @@
+@startuml phase3-before
+title Faz 3 - ONCE (Faz 2 sonu durumu)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+class GameEngine {
+  + player_team: Team
+  + enemy_team: Team
+  --
+  + attack(attacker, target)
+  ..
+  ' attack icinde 7 reaksiyon if-elif (~60 satir):
+  '   Fire->Cryo 2x
+  '   Electro->Fire sicrama + Shocked
+  '   Hydro->Electro 1.5x AoE
+  '   Cryo->Hydro dondur
+  '   Fire->Hydro 1.5x + yanma
+  '   Hydro->Fire 1.5x
+  '   else default
+  + use_ability(character, target_index)
+  ..
+  ' use_ability icinde 4 yetenek if-elif (~38 satir):
+  '   fire_blast (element-mutate hack ile)
+  '   freeze_ray
+  '   thunder_chain
+  '   tidal_wave
+  + enemy_decide(enemy)
+  ..
+  ' enemy_decide tek tip AI mantigi:
+  '   if HP < 30% and random < 0.5: use_ability
+  '   else: attack
+}
+
+abstract class Character {
+  + name / element / hp / max_hp
+  + ability_name: str        <<sadece isim string>>
+  --
+  + take_damage / tick / should_skip_turn
+}
+
+GameEngine "1" *-- "*" Character : via Team
+
+note bottom of GameEngine
+  attack + use_ability + enemy_decide
+  toplam 100+ satir if-elif.
+  Yeni reaksiyon, yetenek veya AI tipi =
+  engine'i degistir = OCP ihlali.
+end note
+
+note right of Character
+  ability_name sadece display amacli.
+  Davranis engine'de gomulu.
+end note
+
+@enduml

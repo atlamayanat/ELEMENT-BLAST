@@ -177,6 +177,134 @@ Faz 1'de tek status vardı: `frozen_turns: int` alanı. Yanma eklemek için `bur
 ---
 
 ## Faz 2 UML
+- **Önce:** [docs/diagrams/phase2-before.puml](docs/diagrams/phase2-before.puml)
+- **Sonra:** [docs/diagrams/phase2-after.puml](docs/diagrams/phase2-after.puml)
+
 ## Faz 2 AI Etkileşim Kaydı
 
 - [docs/ai-log/phase2.md](docs/ai-log/phase2.md) — Faz 2 sırasında AI ile yapılan tartışmalar, AI'ın eksik/yanlış önerilerinin eleştirisi.
+
+---
+
+## Faz 3 — Behavioral Örüntüler
+
+### 5. Strategy — AbilityStrategy & EnemyAIStrategy
+
+**Kategori:** Behavioral
+**Konum:** [`src/game/abilities/`](src/game/abilities/), [`src/game/ai/`](src/game/ai/)
+**İlgili PROBLEMS.md maddeleri:** #4 (yetenek if-elif), #5 (AI tek tip)
+
+#### Sorun
+- `engine.use_ability` 4 yetenek için 38 satırlık if-elif zinciriydi. Yeni yetenek = engine'i değiştir.
+- `engine.enemy_decide` tek tip AI: HP < %30 ise yetenek, aksi halde saldır. Düşman davranış varyantları yok.
+
+#### Çözüm
+Her yetenek bir Strategy alt sınıfı. Karakter `ability: AbilityStrategy` field'ı taşıyor; engine sadece `character.ability.execute(...)` çağırıyor.
+
+```python
+class AbilityStrategy(ABC):
+    @abstractmethod
+    def execute(self, engine, character, target_index): ...
+```
+
+4 concrete: `FireBlastStrategy`, `FreezeRayStrategy`, `ThunderChainStrategy`, `TidalWaveStrategy`. `abilities/registry.py` ad → strategy eşleşmesi.
+
+Aynı mantık enemy AI'da: `EnemyAIStrategy` ABC + `DefensiveAI` concrete. Builder/Factory düşman karakterlere otomatik `DefensiveAI` inject ediyor.
+
+#### Önce / Sonra
+**Önce:**
+```python
+def use_ability(self, character, target_index=0):
+    if character.ability_name == "fire_blast":
+        # 12 satır kod
+    elif character.ability_name == "freeze_ray":
+        # 10 satır
+    elif character.ability_name == "thunder_chain":
+        # ...
+```
+
+**Sonra:**
+```python
+def use_ability(self, character, target_index=0):
+    character.ability.execute(self, character, target_index)
+```
+
+#### Ne Kazandık
+- **OCP somut:** Yeni yetenek = yeni Strategy sınıfı + registry.register(); engine'e dokunmadan.
+- **fire_blast element-mutate hack silindi:** Eski kodda `character.element = "fire"` hack'i vardı; `FireBlastStrategy` artık `source_element="fire"` parametresini doğrudan `take_damage`'a veriyor.
+- **Engine sade:** 3 büyük metod (`use_ability`, `enemy_decide`) tek satıra indi.
+
+---
+
+### 6. Chain of Responsibility — ReactionHandler
+
+**Kategori:** Behavioral
+**Konum:** [`src/game/reactions/`](src/game/reactions/)
+**İlgili PROBLEMS.md maddesi:** #2 (reaksiyon if-elif zinciri)
+
+#### Sorun
+`engine.attack` içinde 7 elemental reaksiyon için 60+ satırlık if-elif zinciri. Yeni reaksiyon eklemek (örn. Cryo→Electro) = engine'i değiştir, mevcut testleri kırma riski.
+
+#### Çözüm
+Her reaksiyon bir `ReactionHandler`. Engine bir `ReactionChain` tutuyor; saldırı geldiğinde context kurulur, zincire verilir, ilk eşleşen handler kendi davranışını uygular.
+
+```python
+class ReactionHandler(ABC):
+    @abstractmethod
+    def can_handle(self, ctx): ...
+    @abstractmethod
+    def apply(self, ctx): ...
+
+class ReactionChain:
+    def handle(self, ctx):
+        for h in self._handlers:
+            if h.can_handle(ctx):
+                h.apply(ctx)
+                return h
+```
+
+7 concrete handler + `DefaultHandler` (fallback, her zaman eşleşir, zincirin sonunda).
+
+#### Önce / Sonra
+**Önce:**
+```python
+def attack(self, attacker, target):
+    if target.hp <= 0: ...
+    damage = attacker.attack_power
+    if attacker.element == "fire" and target.element == "cryo":
+        # 5 satır
+    elif attacker.element == "electro" and target.element == "fire":
+        # 15 satır (sıçrama + Shocked)
+    elif attacker.element == "hydro" and target.element == "electro":
+        # 10 satır (AoE)
+    # ... 4 daha
+    else:
+        # default
+```
+
+**Sonra:**
+```python
+def attack(self, attacker, target):
+    if target.hp <= 0: ...
+    ctx = ReactionContext(
+        attacker=attacker, target=target,
+        opp_team=self.opponent_team_of(attacker),
+        base_damage=attacker.attack_power, engine=self,
+    )
+    self.reaction_chain.handle(ctx)
+```
+
+#### Ne Kazandık (OCP demosu burada!)
+- **Yeni reaksiyon = yeni handler + chain.append:** `tests/test_smoke.py::test_ocp_new_reaction_handler_appended_without_engine_change` testi bunun kanıtı. Test içinde yeni `CryoElectroHandler` tanımlanıyor, engine kodu değişmeden çalışıyor.
+- **Her reaksiyon kendi dosyasında değil ama kendi sınıfında:** Test edilebilir, izole.
+- **engine.attack 60+ satırdan 8 satıra düştü.**
+
+---
+
+## Faz 3 UML
+- **Önce:** [docs/diagrams/phase3-before.puml](docs/diagrams/phase3-before.puml)
+- **Sonra:** [docs/diagrams/phase3-after.puml](docs/diagrams/phase3-after.puml)
+
+## Faz 3 AI Etkileşim Kaydı
+
+- [docs/ai-log/phase3.md](docs/ai-log/phase3.md) — Faz 3 sırasında AI ile yapılan tartışmalar, ≥30 dk pair programming oturumu.

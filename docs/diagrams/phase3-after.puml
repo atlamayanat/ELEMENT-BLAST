@@ -1,0 +1,122 @@
+@startuml phase3-after
+title Faz 3 - SONRA (Strategy + Chain of Responsibility)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+
+' --- Strategy: Yetenekler ---
+
+abstract class AbilityStrategy <<Strategy>> {
+  + {abstract} name : str
+  + {abstract} display_name : str
+  + {abstract} is_single_target : bool
+  + {abstract} execute(engine, character, target_index)
+}
+
+class FireBlastStrategy
+class FreezeRayStrategy
+class ThunderChainStrategy
+class TidalWaveStrategy
+
+AbilityStrategy <|-- FireBlastStrategy
+AbilityStrategy <|-- FreezeRayStrategy
+AbilityStrategy <|-- ThunderChainStrategy
+AbilityStrategy <|-- TidalWaveStrategy
+
+class "abilities.registry" as AbilityRegistry <<module>> {
+  + get(name) : AbilityStrategy
+  + register(strategy)
+  + all_names() : list[str]
+}
+
+AbilityRegistry ..> AbilityStrategy : returns
+
+' --- Strategy: Enemy AI ---
+
+abstract class EnemyAIStrategy <<Strategy>> {
+  + {abstract} decide(engine, enemy)
+}
+
+class DefensiveAI {
+  - HP_THRESHOLD_RATIO = 0.3
+  - ABILITY_CHANCE_WHEN_LOW = 0.5
+  + decide(engine, enemy)
+}
+
+EnemyAIStrategy <|-- DefensiveAI
+
+' --- Chain of Responsibility: Reaksiyonlar ---
+
+class ReactionContext <<dataclass>> {
+  + attacker / target / opp_team
+  + base_damage / engine
+}
+
+abstract class ReactionHandler <<Handler>> {
+  + {abstract} can_handle(ctx) : bool
+  + {abstract} apply(ctx)
+}
+
+class ReactionChain {
+  - _handlers : list[ReactionHandler]
+  + handle(ctx) : ReactionHandler?
+  + append(handler)
+  + builtin() : ReactionChain  <<class method>>
+}
+
+class FireCryoHandler
+class ElectroFireHandler
+class HydroElectroHandler
+class CryoHydroHandler
+class FireHydroHandler
+class HydroFireHandler
+class DefaultHandler
+
+ReactionHandler <|-- FireCryoHandler
+ReactionHandler <|-- ElectroFireHandler
+ReactionHandler <|-- HydroElectroHandler
+ReactionHandler <|-- CryoHydroHandler
+ReactionHandler <|-- FireHydroHandler
+ReactionHandler <|-- HydroFireHandler
+ReactionHandler <|-- DefaultHandler
+
+ReactionChain o--> ReactionHandler : holds ordered
+
+' --- Character + Engine ---
+
+abstract class Character {
+  + name / element / hp / max_hp
+  + ability : AbilityStrategy   <<Strategy referansi>>
+  + ai_strategy : EnemyAIStrategy?
+}
+
+class GameEngine {
+  + player_team / enemy_team
+  + reaction_chain : ReactionChain
+  --
+  + attack(a, t) : chain.handle(ctx)
+  + use_ability(c, idx) : c.ability.execute(...)
+  + enemy_decide(e) : e.ai_strategy.decide(...)
+  + announce_hit(a, t, dmg)
+  + resolve_single_target(c, idx)
+}
+
+GameEngine "1" *-- "1" ReactionChain
+Character "1" *-- "1" AbilityStrategy
+Character "1" o-- "0..1" EnemyAIStrategy
+
+note right of GameEngine
+  attack: 8 satir (ctx kur + chain.handle)
+  use_ability: 1 satir (delegasyon)
+  enemy_decide: 1 satir (delegasyon)
+  Toplam: 100+ satir if-elif -> 10 satir.
+end note
+
+note bottom of ReactionChain
+  OCP demosu: yeni reaksiyon eklemek =
+  yeni ReactionHandler + chain.append.
+  Engine kodu degismeden test gecer.
+  (tests/test_smoke.py::test_ocp_*)
+end note
+
+@enduml
